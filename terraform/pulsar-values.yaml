@@ -1,0 +1,37 @@
+#https://pulsar.apache.org/docs/4.0.x/helm-deploy/
+#https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml
+volumes:
+  persistence: false
+  local_storage: true
+
+# disabled AntiAffinity
+# antiAffinity allows pods from same service to be scheduled on different nodes
+affinity:
+  anti_affinity: false
+
+zookeeper:
+  replicaCount: 1
+
+bookkeeper:
+  replicaCount: 1
+  configData:
+    # minimal memory use for bookkeeper
+    # https://bookkeeper.apache.org/docs/reference/config#db-ledger-storage-settings
+    dbStorage_writeCacheMaxSizeMb: "32"
+    dbStorage_readAheadCacheMaxSizeMb: "32"
+    dbStorage_rocksDB_writeBufferSizeMB: "8"
+    dbStorage_rocksDB_blockCacheSize: "8388608"
+
+broker:
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+
+proxy:
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80

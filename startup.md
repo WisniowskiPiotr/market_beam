@@ -69,11 +69,10 @@ sudo apt update && sudo apt install terraform
 ## Startup
 
 ```
-minikube start --memory=8192 --cpus=12
 cd terraform
 terraform apply -auto-approve
 
-
+-- TODO: command from pulsar. kafka is the old approach
 kubectl port-forward pod/kafka-controller-0 9092:9092
 ./kafka_2.13-3.8.0/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test-topic --producer.config test-user.properties
 ```
@@ -87,3 +86,6 @@ kubectl port-forward pod/kafka-controller-0 9092:9092
 terraform destroy
 ```
 
+# TODO: test pulsar so that it replicates msgs
+# TODO: setup persistence in pulsar
+# TODO: setup flink: https://github.com/bitnami/charts/tree/main/bitnami/flink/
