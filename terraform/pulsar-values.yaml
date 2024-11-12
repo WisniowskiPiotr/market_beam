@@ -1,11 +1,11 @@
 #https://pulsar.apache.org/docs/4.0.x/helm-deploy/
 #https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml
+
 volumes:
-  persistence: false
-  local_storage: true
+  persistence: true
 
 # disabled AntiAffinity
-# antiAffinity allows pods from same service to be scheduled on different nodes
+# antiAffinity forces pods from same service to be scheduled on different nodes
 affinity:
   anti_affinity: false
 
@@ -13,6 +13,9 @@ zookeeper:
   replicaCount: 1
 
 bookkeeper:
+  storage: # TODO: test if this has any effect
+    type: "hostPath"
+    # hostPath.path set by tf
   replicaCount: 1
   configData:
     # minimal memory use for bookkeeper
