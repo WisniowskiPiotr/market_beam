@@ -1,0 +1,116 @@
+#https://pulsar.apache.org/docs/4.0.x/helm-deploy/
+#https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml
+
+#namespace        : "pulsar"
+persistence: false
+
+metadataPrefix: "/configuration-store"
+
+pulsar_manager:
+  configData:
+    ENV_SPRING_CONFIGURATION_FILE: "/pulsar-manager/pulsar-manager/application.properties"
+    SPRING_CONFIGURATION_FILE: "/pulsar-manager/pulsar-manager/application.properties"
+    PULSAR_MANAGER_OPTS: " -Dlog4j2.formatMsgNoLookups=true"
+
+# disabled AntiAffinity
+# antiAffinity forces pods from same service to be scheduled on different nodes
+affinity:
+  anti_affinity: false
+
+
+components:
+  # zookeeper
+  zookeeper: true
+  # oxia
+  oxia: false
+  # bookkeeper
+  bookkeeper: true
+  # bookkeeper - autorecovery
+  autorecovery: true
+  # broker
+  broker: true
+  # functions
+  # WARNING! Before enabling functions, make sure that all of your users are trusted since functions run user code
+  # and the current security sandbox is not sufficient to protect against malicious code.
+  functions: false
+  # proxy
+  proxy: true
+  # toolset
+  toolset: true
+  # pulsar manager
+  pulsar_manager: false
+
+kube-prometheus-stack:
+  enabled: true
+  prometheus:
+    replicas: 1
+  grafana:
+    replicas: 1
+
+zookeeper:
+  replicaCount: 1
+  volumes:
+    persistence: false
+
+bookkeeper:
+  replicaCount: 1
+
+broker:
+  replicaCount: 1
+
+proxy:
+  replicaCount: 1
+
+#broker:
+#  autoscaling:
+#    enabled: true
+#    minReplicas: 1
+#    maxReplicas: 3
+#    targetCPUUtilizationPercentage: 80
+
+#proxy:
+#  autoscaling:
+#    enabled: true
+#    minReplicas: 1
+#    maxReplicas: 3
+#    targetCPUUtilizationPercentage: 80
+
+## deployed with emptyDir
+# volumes:
+#   persistence: false
+
+# # disabled AntiAffinity
+# affinity:
+#   anti_affinity: false
+
+# # disable auto recovery
+# components:
+#   autorecovery: false
+#   pulsar_manager: true
+
+# zookeeper:
+#   replicaCount: 1
+
+# bookkeeper:
+#   replicaCount: 1
+#   configData:
+#     # minimal memory use for bookkeeper
+#     # https://bookkeeper.apache.org/docs/reference/config#db-ledger-storage-settings
+#     dbStorage_writeCacheMaxSizeMb: "32"
+#     dbStorage_readAheadCacheMaxSizeMb: "32"
+#     dbStorage_rocksDB_writeBufferSizeMB: "8"
+#     dbStorage_rocksDB_blockCacheSize: "8388608"
+
+# broker:
+#   replicaCount: 1
+#   configData:
+#     ## Enable `autoSkipNonRecoverableData` since bookkeeper is running
+#     ## without persistence
+#     autoSkipNonRecoverableData: "true"
+#     # storage settings
+#     managedLedgerDefaultEnsembleSize: "1"
+#     managedLedgerDefaultWriteQuorum: "1"
+#     managedLedgerDefaultAckQuorum: "1"
+
+# proxy:
+#   replicaCount: 1

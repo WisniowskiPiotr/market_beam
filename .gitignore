@@ -2,3 +2,5 @@ kafka_*
 .terraform*
 *.tfstate*
 data/*
+*.key
+*.pub
