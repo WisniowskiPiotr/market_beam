@@ -32,7 +32,6 @@ resource "terraform_data" "pulsar_main_key" {
   }
 }
 
-
 resource "kubernetes_secret" "pulsar_main_key" {
   metadata {
     name      = "${local.pulsar_release_name}-token-asymmetric-key"
@@ -46,7 +45,6 @@ resource "kubernetes_secret" "pulsar_main_key" {
 
   type = "Opaque"
 }
-
 
 resource "terraform_data" "pulsar_admin_key" {
   for_each = local.pulsar_admins
@@ -84,27 +82,91 @@ resource "kubernetes_secret" "pulsar_admin_keys" {
   type = "Opaque"
 }
 
-# resource "kubernetes_persistent_volume" "pulsar_persistent_volume" {
-#   for_each = local.pulsar_data_volumes
-#   depends_on = [ terraform_data.minikube_cluster ]
-#   metadata {
-#     name = replace(each.key,"_", "-")
-#   }
+locals {
+  bookies_count = 1
+  zk_count = 1
+}
 
-#   spec {
-#     capacity = {
-#       storage = "2Gi"
-#     }
+# mkdir: cannot create directory '/pulsar/data/zookeeper': Permission denied
+resource "kubernetes_persistent_volume" "pulsar_zk_volume" {
+  count =  local.zk_count
+  depends_on = [ terraform_data.minikube_cluster ]
+  metadata {
+    name = "pulsar-zk-volume-${count.index}"
+  }
 
-#     access_modes = ["ReadWriteOnce"]
+  spec {
+    capacity = {
+      storage = "2Gi"
+    }
+    access_modes = ["ReadWriteOnce"]
+    persistent_volume_reclaim_policy = "Retain"
+    claim_ref {
+      name = "pulsar-release-zookeeper-data-pulsar-release-zookeeper-${count.index}"
+      namespace = kubernetes_namespace.pulsar_namespace.metadata[0].name
+    }
+    persistent_volume_source {
+      host_path {
+        path = "${local.minikube_data_path}/pulsar-zk-volume-${count.index}" 
+        type = "DirectoryOrCreate"
+      }
+    }
+  }
+  # manually destroy kubectl delete pvc pulsar-release-zookeeper-data-pulsar-release-zookeeper-0   --grace-period=0 --force -n pulsar-namespace 
+  # as this is not cleanuped by helm
+}
 
-#     persistent_volume_source {
-#       host_path {
-#         path = "${local.minikube_data_path}/${each.key}" 
-#       }
-#     }
-#   }
-# }
+resource "kubernetes_persistent_volume" "pulsar_journal_volume" {
+  count =  local.bookies_count
+  depends_on = [ terraform_data.minikube_cluster ]
+  metadata {
+    name = "pulsar-journal-volume-${count.index}"
+  }
+
+  spec {
+    capacity = {
+      storage = "2Gi"
+    }
+    access_modes = ["ReadWriteOnce"]
+    persistent_volume_reclaim_policy = "Retain"
+    claim_ref {
+      name = "pulsar-release-bookie-journal-pulsar-release-bookie-${count.index}"
+      namespace = kubernetes_namespace.pulsar_namespace.metadata[0].name
+    }
+    persistent_volume_source {
+      host_path {
+        path = "${local.minikube_data_path}/pulsar-journal-volume-${count.index}" 
+        type = "DirectoryOrCreate"
+      }
+    }
+  }
+}
+
+resource "kubernetes_persistent_volume" "pulsar_ledger_volume" {
+  count =  local.bookies_count
+  depends_on = [ terraform_data.minikube_cluster ]
+  metadata {
+    name = "pulsar-ledger-volume-${count.index}"
+  }
+
+  spec {
+    capacity = {
+      storage = "2Gi"
+    }
+    access_modes = ["ReadWriteOnce"]
+    persistent_volume_reclaim_policy = "Retain"
+    claim_ref {
+      name = "pulsar-release-bookie-ledgers-pulsar-release-bookie-${count.index}"
+      namespace = kubernetes_namespace.pulsar_namespace.metadata[0].name
+    }
+    persistent_volume_source {
+      host_path {
+        path = "${local.minikube_data_path}/pulsar-ledger-volume-${count.index}" 
+        type = "DirectoryOrCreate"
+      }
+    }
+  }
+}
 
 
 resource "helm_release" "pulsar" {
@@ -114,74 +176,32 @@ resource "helm_release" "pulsar" {
   name             = local.pulsar_release_name
   namespace        = kubernetes_namespace.pulsar_namespace.metadata[0].name
   values           = [file("pulsar_chart_values.yaml")]
-  lint = true
-  timeout          = 20 * 60
-  #depends_on = [kubernetes_persistent_volume.pulsar_persistent_volume]
+  
+  set {
+    name  = "zookeeper.replicaCount"
+    value = local.zk_count
+  }
+
+  # set {
+  #   name  = "zookeeper.volumes.data.size"
+  #   value = kubernetes_persistent_volume.pulsar_zk_volume[0].spec[0].capacity.storage
+  # }
+
+  set {
+    name  = "bookkeeper.replicaCount"
+    value = local.bookies_count
+  }
+
+  # set {
+  #   name  = "bookkeeper.volumes.journal.size"
+  #   value = kubernetes_persistent_volume.pulsar_journal_volume[0].spec[0].capacity.storage
+  # }
+
+  # set {
+  #   name  = "bookkeeper.volumes.ledger.size"
+  #   value = kubernetes_persistent_volume.pulsar_ledger_volume[0].spec[0].capacity.storage
+  # }
+  timeout          = 10 * 60
+  cleanup_on_fail = true
   depends_on = [terraform_data.minikube_cluster]
 }
-
-
-# helm status -n pulsar-namespace pulsar-release
-# NAME: pulsar-release
-# LAST DEPLOYED: Sun Dec 29 20:58:42 2024
-# NAMESPACE: pulsar-namespace
-# STATUS: failed
-# REVISION: 1
-# NOTES:
-# 1. Get your 'admin' user password by running:
-
-#    kubectl get secret --namespace pulsar-namespace pulsar-release-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
-
-
-# 2. The Grafana server can be accessed via port 80 on the following DNS name from within your cluster:
-
-#    pulsar-release-grafana.pulsar-namespace.svc.cluster.local
-
-#    Get the Grafana URL to visit by running these commands in the same shell:
-#      export POD_NAME=$(kubectl get pods --namespace pulsar-namespace -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=pulsar-release" -o jsonpath="{.items[0].metadata.name}")
-#      kubectl --namespace pulsar-namespace port-forward $POD_NAME 3000
-
-# 3. Login with the password from step 1 and the username: admin
-# #################################################################################
-# ######   WARNING: Persistence is disabled!!! You will lose your data when   #####
-# ######            the Grafana pod is terminated.                            #####
-# #################################################################################
-
-# kube-state-metrics is a simple service that listens to the Kubernetes API server and generates metrics about the state of the objects.
-# The exposed metrics can be found here:
-# https://github.com/kubernetes/kube-state-metrics/blob/master/docs/README.md#exposed-metrics
-
-# The metrics are exported on the HTTP endpoint /metrics on the listening port.
-# In your case, pulsar-release-kube-state-metrics.pulsar-namespace.svc.cluster.local:8080/metrics
-
-# They are served either as plaintext or protobuf depending on the Accept header.
-# They are designed to be consumed either by Prometheus itself or by a scraper that is compatible with scraping a Prometheus client endpoint.
-
-# kube-prometheus-stack has been installed. Check its status by running:
-#   kubectl --namespace pulsar-namespace get pods -l "release=pulsar-release"
-
-# Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
-
-# Thank you for installing Apache Pulsar Helm chart version 3.6.0.
-
-# !! WARNING !!
-
-# Important Security Disclaimer for Apache Pulsar Helm Chart Usage:
-
-# This Helm chart is provided with a default configuration that does not
-# meet the security requirements for production environments or sensitive
-# data handling. Users are strongly advised to thoroughly review and
-# customize the security settings to ensure a secure deployment that
-# aligns with their specific operational and security policies.
-
-# Go to https://github.com/apache/pulsar-helm-chart for more details.
-
-# Ask usage questions at https://github.com/apache/pulsar/discussions/categories/q-a
-# Report issues to https://github.com/apache/pulsar-helm-chart/issues
-# Please contribute improvements to https://github.com/apache/pulsar-helm-chart
-
-
-# 1. Get the application URL by running these commands:
-#   export POD_NAME=$(kubectl get pods --namespace pulsar-namespace -l "app.kubernetes.io/name=prometheus-node-exporter,app.kubernetes.io/instance=pulsar-release" -o jsonpath="{.items[0].metadata.name}")
-#   echo "Visit http://127.0.0.1:9100 to use your application"
-#   kubectl port-forward --namespace pulsar-namespace $POD_NAME 9100

@@ -3,39 +3,64 @@
 
 volumes:
   persistence: true
+  local_storage: false
 
 affinity:
   anti_affinity: false
 
 components:
+  oxia: false # replace zookeeper
   zookeeper: true
   bookkeeper: true
-  autorecovery: true
+  autorecovery: true 
   broker: true
-  proxy: true
-  toolset: true # toto:turn off
+  # This one causes helm not to complete but is not needed as can connect directly to broker
+  proxy: false 
+  toolset: false
+  pulsar_manager: true
 
 kube-prometheus-stack:
   enabled: true
-  prometheus:
-    replicas: 1
+  prometheusOperator:
+    enabled: true
   grafana:
-    replicas: 1
+    enabled: true
+  alertmanager:
+    enabled: false
+  prometheus:
+    enabled: true
 
 zookeeper:
   replicaCount: 1
+  volumes:
+    data:
+      name: data
+      size: 2Gi #20
+      local_storage: false
 
 bookkeeper:
   replicaCount: 1
+  volumes:
+    journal:
+      size: 2Gi #10
+      local_storage: false
+    ledger:
+      size: 2Gi #50
+      local_storage: false
+  configData:
+    # minimal memory use for bookkeeper
+    # https://bookkeeper.apache.org/docs/reference/config#db-ledger-storage-settings
+    dbStorage_writeCacheMaxSizeMb: "32"
+    dbStorage_readAheadCacheMaxSizeMb: "32"
+    dbStorage_rocksDB_writeBufferSizeMB: "8"
+    dbStorage_rocksDB_blockCacheSize: "8388608"
 
 broker:
   replicaCount: 1
+  configData:
+    managedLedgerDefaultEnsembleSize: "1"
+    managedLedgerDefaultWriteQuorum: "1"
+    managedLedgerDefaultAckQuorum: "1"
 
 proxy:
   replicaCount: 1
-
-#pulsar_manager:
-#  configData:
-#    ENV_SPRING_CONFIGURATION_FILE: "/pulsar-manager/pulsar-manager/application.properties"
-#    SPRING_CONFIGURATION_FILE: "/pulsar-manager/pulsar-manager/application.properties"
-#    PULSAR_MANAGER_OPTS: " -Dlog4j2.formatMsgNoLookups=true"
