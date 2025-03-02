@@ -8,8 +8,6 @@ volumes:
 affinity:
   anti_affinity: false
 
-# zkLedgersRootPath
-
 components:
   oxia: false # replace zookeeper
   zookeeper: true
@@ -37,17 +35,17 @@ zookeeper:
   volumes:
     data:
       name: data
-      size: 2Gi #20
+      #size: 2Gi #20
       local_storage: false
 
 bookkeeper:
   replicaCount: 1
   volumes:
     journal:
-      size: 2Gi #10
+      #size: 2Gi #10
       local_storage: false
     ledger:
-      size: 2Gi #50
+      #size: 2Gi #50
       local_storage: false
   configData:
     # minimal memory use for bookkeeper

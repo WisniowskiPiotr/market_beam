@@ -117,7 +117,8 @@ resource "terraform_data" "pulsar_zk_volume_cleanup" {
   depends_on = [ kubernetes_persistent_volume.pulsar_zk_volume ]
   provisioner "local-exec" {
     command = <<EOT
-      sleep 1
+      sleep 60
+      minikube ssh "sudo chmod -R 777 ${local.minikube_data_path}"
     EOT
   }
 
@@ -163,7 +164,8 @@ resource "terraform_data" "pulsar_journal_volume_cleanup" {
   depends_on = [ kubernetes_persistent_volume.pulsar_journal_volume ]
   provisioner "local-exec" {
     command = <<EOT
-      sleep 1
+      sleep 60
+      minikube ssh "sudo chmod -R 777 ${local.minikube_data_path}"
     EOT
   }
 
@@ -209,7 +211,8 @@ resource "terraform_data" "pulsar_ledger_volume_cleanup" {
   depends_on = [ kubernetes_persistent_volume.pulsar_ledger_volume ]
   provisioner "local-exec" {
     command = <<EOT
-      sleep 1
+      sleep 60
+      minikube ssh "sudo chmod -R 777 ${local.minikube_data_path}"
     EOT
   }
 
@@ -238,25 +241,25 @@ resource "helm_release" "pulsar" {
     value = local.zk_count
   }
 
-  # set {
-  #   name  = "zookeeper.volumes.data.size"
-  #   value = kubernetes_persistent_volume.pulsar_zk_volume[0].spec[0].capacity.storage
-  # }
+  set {
+    name  = "zookeeper.volumes.data.size"
+    value = kubernetes_persistent_volume.pulsar_zk_volume[0].spec[0].capacity.storage
+  }
 
   set {
     name  = "bookkeeper.replicaCount"
     value = local.bookies_count
   }
 
-  # set {
-  #   name  = "bookkeeper.volumes.journal.size"
-  #   value = kubernetes_persistent_volume.pulsar_journal_volume[0].spec[0].capacity.storage
-  # }
+  set {
+    name  = "bookkeeper.volumes.journal.size"
+    value = kubernetes_persistent_volume.pulsar_journal_volume[0].spec[0].capacity.storage
+  }
 
-  # set {
-  #   name  = "bookkeeper.volumes.ledger.size"
-  #   value = kubernetes_persistent_volume.pulsar_ledger_volume[0].spec[0].capacity.storage
-  # }
+  set {
+    name  = "bookkeeper.volumes.ledger.size"
+    value = kubernetes_persistent_volume.pulsar_ledger_volume[0].spec[0].capacity.storage
+  }
   timeout          = 10 * 60
   cleanup_on_fail = true
   depends_on = [terraform_data.minikube_cluster]
