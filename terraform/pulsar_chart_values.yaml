@@ -8,13 +8,15 @@ volumes:
 affinity:
   anti_affinity: false
 
+# zkLedgersRootPath
+
 components:
   oxia: false # replace zookeeper
   zookeeper: true
   bookkeeper: true
   autorecovery: true 
   broker: true
-  # This one causes helm not to complete but is not needed as can connect directly to broker
+  # Proxy causes helm not to complete but is not needed as can connect directly to broker
   proxy: false 
   toolset: false
   pulsar_manager: true

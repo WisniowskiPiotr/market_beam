@@ -16,7 +16,6 @@ resource "kubernetes_namespace" "pulsar_namespace" {
   wait_for_default_service_account = true
 }
 
-
 resource "terraform_data" "pulsar_main_key" {
   input = [
     local.pulsar_key_file_name,
@@ -87,7 +86,6 @@ locals {
   zk_count = 1
 }
 
-# mkdir: cannot create directory '/pulsar/data/zookeeper': Permission denied
 resource "kubernetes_persistent_volume" "pulsar_zk_volume" {
   count =  local.zk_count
   depends_on = [ terraform_data.minikube_cluster ]
@@ -112,8 +110,26 @@ resource "kubernetes_persistent_volume" "pulsar_zk_volume" {
       }
     }
   }
-  # manually destroy kubectl delete pvc pulsar-release-zookeeper-data-pulsar-release-zookeeper-0   --grace-period=0 --force -n pulsar-namespace 
-  # as this is not cleanuped by helm
+}
+
+resource "terraform_data" "pulsar_zk_volume_cleanup" {
+  count =  local.zk_count
+  depends_on = [ kubernetes_persistent_volume.pulsar_zk_volume ]
+  provisioner "local-exec" {
+    command = <<EOT
+      sleep 1
+    EOT
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+      kubectl delete pvc \
+        "pulsar-release-zookeeper-data-pulsar-release-zookeeper-${count.index}" \
+        --grace-period=0 --force \
+        -n pulsar-namespace
+    EOT
+  }
 }
 
 resource "kubernetes_persistent_volume" "pulsar_journal_volume" {
@@ -142,6 +158,26 @@ resource "kubernetes_persistent_volume" "pulsar_journal_volume" {
   }
 }
 
+resource "terraform_data" "pulsar_journal_volume_cleanup" {
+  count =  local.zk_count
+  depends_on = [ kubernetes_persistent_volume.pulsar_journal_volume ]
+  provisioner "local-exec" {
+    command = <<EOT
+      sleep 1
+    EOT
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+      kubectl delete pvc \
+        "pulsar-release-bookie-journal-pulsar-release-bookie-${count.index}" \
+        --grace-period=0 --force \
+        -n pulsar-namespace
+    EOT
+  }
+}
+
 resource "kubernetes_persistent_volume" "pulsar_ledger_volume" {
   count =  local.bookies_count
   depends_on = [ terraform_data.minikube_cluster ]
@@ -151,7 +187,7 @@ resource "kubernetes_persistent_volume" "pulsar_ledger_volume" {
 
   spec {
     capacity = {
-      storage = "2Gi"
+      storage = "50Gi"
     }
     access_modes = ["ReadWriteOnce"]
     persistent_volume_reclaim_policy = "Retain"
@@ -165,6 +201,26 @@ resource "kubernetes_persistent_volume" "pulsar_ledger_volume" {
         type = "DirectoryOrCreate"
       }
     }
+  }
+}
+
+resource "terraform_data" "pulsar_ledger_volume_cleanup" {
+  count =  local.zk_count
+  depends_on = [ kubernetes_persistent_volume.pulsar_ledger_volume ]
+  provisioner "local-exec" {
+    command = <<EOT
+      sleep 1
+    EOT
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+      kubectl delete pvc \
+        "pulsar-release-bookie-ledgers-pulsar-release-bookie-${count.index}" \
+        --grace-period=0 --force \
+        -n pulsar-namespace
+    EOT
   }
 }
 
