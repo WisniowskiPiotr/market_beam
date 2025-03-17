@@ -2,14 +2,12 @@
 # https://registry.terraform.io/providers/streamnative/pulsar/latest/docs
 # https://github.com/streamnative/terraform-provider-pulsar
 
-#provider "pulsar" {
-#  web_service_url = "http://cluster-broker.test.svc.cluster.local:8080"
-#}
 
-# resource "pulsar_tenant" "pulsar_tenant" {
-#   tenant           = "pulsar"
-#   allowed_clusters = [pulsar_cluster.pulsar_cluster.cluster]
-# }
+resource "pulsar_tenant" "pulsar_tenant" {
+  tenant           = "market_beam"
+  allowed_clusters = [ helm_release.pulsar.name]
+  admin_roles = [ ]
+}
 
 # resource "pulsar_namespace" "test" {
 #   tenant    = pulsar_tenant.pulsar_tenant.tenant

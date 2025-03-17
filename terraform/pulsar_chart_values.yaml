@@ -14,8 +14,7 @@ components:
   bookkeeper: true
   autorecovery: true 
   broker: true
-  # Proxy causes helm not to complete but is not needed as can connect directly to broker
-  proxy: false 
+  proxy: true 
   toolset: false
   pulsar_manager: true
 
@@ -64,3 +63,9 @@ broker:
 
 proxy:
   replicaCount: 1
+  service:
+    type: NodePort
+
+pulsar_manager:
+  service:
+    type: NodePort
