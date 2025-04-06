@@ -18,10 +18,7 @@ terraform {
 }
 
 provider "pulsar" {
-  web_service_url = file(terraform_data.pulsar_manager_url.output[0])
-  # todo get token from pulsar for auth
-  #key_file_path = "./jwtRS256.key.pub"
-  #token             = filebase64("./admin.jwtRS256.key")
+  web_service_url = file(terraform_data.pulsar_manager_url1.output[0])
 }
 
 

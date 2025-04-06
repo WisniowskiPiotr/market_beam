@@ -69,3 +69,5 @@ proxy:
 pulsar_manager:
   service:
     type: NodePort
+  adminService:
+    type: NodePort

@@ -6,7 +6,7 @@
 resource "pulsar_tenant" "pulsar_tenant" {
   tenant           = "market_beam"
   allowed_clusters = [ helm_release.pulsar.name]
-  admin_roles = [ ]
+  admin_roles = [ "proxy-admin","broker-admin","admin"]
 }
 
 # resource "pulsar_namespace" "test" {

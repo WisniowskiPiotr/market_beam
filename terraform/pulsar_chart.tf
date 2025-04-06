@@ -7,7 +7,6 @@ locals {
     pulsar_pub_key_file_name = "jwtRS256.key.pub"
 }
 
-
 resource "kubernetes_namespace" "pulsar_namespace" {
   depends_on = [ terraform_data.minikube_cluster ]
   metadata {
@@ -227,54 +226,6 @@ resource "terraform_data" "pulsar_ledger_volume_cleanup" {
   }
 }
 
-
-resource "kubernetes_persistent_volume" "pulsar_manager_volume" {
-  depends_on = [ terraform_data.minikube_cluster ]
-  metadata {
-    name = "pulsar-manager-volume"
-  }
-
-  spec {
-    capacity = {
-      storage = "128Mi"
-    }
-    access_modes = ["ReadWriteOnce"]
-    persistent_volume_reclaim_policy = "Retain"
-    claim_ref {
-      name = "pulsar-release-pulsar-manager-data-pulsar-release-pulsar-manager-0"
-      namespace = kubernetes_namespace.pulsar_namespace.metadata[0].name
-    }
-    persistent_volume_source {
-      host_path {
-        path = "${local.minikube_data_path}/pulsar-manager-volume" 
-        type = "DirectoryOrCreate"
-      }
-    }
-  }
-}
-
-resource "terraform_data" "pulsar_manager_volume_cleanup" {
-  count =  local.zk_count
-  depends_on = [ kubernetes_persistent_volume.pulsar_ledger_volume ]
-  provisioner "local-exec" {
-    command = <<EOT
-      sleep 60
-      minikube ssh "sudo chmod -R 777 ${local.minikube_data_path}"
-    EOT
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<EOT
-      kubectl delete pvc \
-        "pulsar-release-pulsar-manager-data-pulsar-release-pulsar-manager-0" \
-        --grace-period=0 --force \
-        -n pulsar-namespace
-    EOT
-  }
-}
-
-
 resource "helm_release" "pulsar" {
   repository       = "https://pulsar.apache.org/charts"
   chart            = "pulsar"
@@ -313,24 +264,27 @@ resource "helm_release" "pulsar" {
 }
 
 
-resource "terraform_data" "pulsar_manager_url" {
+resource "terraform_data" "pulsar_manager_url1" {
   depends_on = [ helm_release.pulsar ]
   input = [
-    "minikube.ip.key"
+    "pulsar-admin.ip.key",
+    "pulsar.ip.key",
   ]
   provisioner "local-exec" {
     command = <<EOT
-      echo -n http://$(minikube ip):$(kubectl get service pulsar-release-pulsar-manager -n pulsar-namespace -o jsonpath='{.spec.ports[0].nodePort}') > minikube.ip.key
+      MINIKUBE_IP=$(minikube ip)
+      PROXY_ADMIN_PORT=$(kubectl get service pulsar-release-proxy -n pulsar-namespace -o jsonpath='{.spec.ports[0].nodePort}')
+      echo -n "http://$MINIKUBE_IP:$PROXY_ADMIN_PORT" > pulsar-admin.ip.key
+      PROXY_PORT=$(kubectl get service pulsar-release-proxy -n pulsar-namespace -o jsonpath='{.spec.ports[1].nodePort}')
+      echo -n "http://$MINIKUBE_IP:$PROXY_PORT" > pulsar.ip.key
     EOT
   }
 
   provisioner "local-exec" {
     when    = destroy
     command = <<EOT
-      rm minikube.ip.key
+      rm pulsar-admin.ip.key
+      rm pulsar.ip.key
     EOT
   }
 }
-
-# secret to acess manager:  kubectl get secret -l component=pulsar-manager -o=jsonpath="{.items[0].data.UI_PASSWORD}" -n pulsar-namespace | base64 --decode
-#user pulsar
